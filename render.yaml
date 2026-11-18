@@ -10,3 +10,7 @@ services:
         value: production
       - key: ADMIN_EMAILS
         value: alrayyantamboli93@gmail.com
+      - key: CORS_ORIGINS
+        value: https://nextus-nothing-c48a.vercel.app
+      - key: APP_URL
+        value: https://nextus-nothing-c48a.vercel.app

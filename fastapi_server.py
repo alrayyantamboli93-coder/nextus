@@ -22,7 +22,8 @@ app = FastAPI(
 
 # Enable CORS for frontend integration
 allowed_origins = [
-    "",
+    "https://nextus-nothing-c48a.vercel.app",
+    "https://nextus-ze2d.onrender.com",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
