@@ -1,5 +1,6 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
+import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -7,6 +8,7 @@ import jwt from 'jsonwebtoken';
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'NEXUS_JWT_SECRET_KEY_2026';
+const SERVER_START_TIME = Date.now();
 
 app.use(express.json());
 
@@ -63,6 +65,15 @@ interface User {
   isAdmin: boolean;
 }
 
+interface Bookmark {
+  id: string;
+  userId: string;
+  itemType: 'note' | 'task' | 'doubt' | 'lost-found';
+  itemId: string;
+  title: string;
+  createdAt: string;
+}
+
 const users: User[] = [
   {
     id: 'student-123',
@@ -84,298 +95,333 @@ const users: User[] = [
   }
 ];
 
-let notes = [
-  {
-    id: 'note-1',
-    title: 'Advanced Machine Learning - Deep Neural Networks lecture notes',
-    subject: 'Machine Learning (CS-601)',
-    branch: 'Computer Science',
-    semester: 6,
-    rating: 4.8,
-    ratingCount: 15,
-    upvotes: 34,
-    userUpvoted: false,
-    fileType: 'pdf',
-    fileSize: '4.2 MB',
-    downloads: 12,
-    uploadedBy: 'Aditya Roy (Alumnus)',
-    uploader_name: 'Aditya Roy (Alumnus)',
-    uploader_id: 'alumni-aditya',
-    uploadedByUserId: 'alumni-aditya',
-    file_url: 'https://example.com/files/ml_notes.pdf',
-    description: 'Detailed explanation of feedforward propagation, backpropagation, gradient descent variants, activation functions (ReLU, Sigmoid, GELU), and overfitting prevention techniques.',
-    date: '2026-07-09',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'note-2',
-    title: 'Data Structures and Algorithms - Cheat Sheet for technical interviews',
-    subject: 'Data Structures and Algorithms',
-    branch: 'Computer Science',
-    semester: 3,
-    rating: 4.9,
-    ratingCount: 24,
-    upvotes: 52,
-    userUpvoted: false,
-    fileType: 'pdf',
-    fileSize: '1.8 MB',
-    downloads: 41,
-    uploadedBy: 'Vikram Malhotra (Alumnus)',
-    uploader_name: 'Vikram Malhotra (Alumnus)',
-    uploader_id: 'alumni-vikram',
-    uploadedByUserId: 'alumni-vikram',
-    file_url: 'https://example.com/files/dsa_cheatsheet.pdf',
-    description: 'Includes complexities, code drafts, and dry runs for graph algorithms (Dijkstra, Bellman-Ford, Kruskal), tree traversals, sliding window pattern, and dynamic programming paradigms.',
-    date: '2026-07-11',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'note-3',
-    title: 'Microprocessors and Assembly Language manual',
-    subject: 'Microprocessors & Microcontrollers',
-    branch: 'Electronics',
-    semester: 4,
-    rating: 4.2,
-    ratingCount: 5,
-    upvotes: 18,
-    userUpvoted: false,
-    fileType: 'docx',
-    fileSize: '2.5 MB',
-    downloads: 5,
-    uploadedBy: 'Prof. Rajesh Sen (Faculty)',
-    uploader_name: 'Prof. Rajesh Sen (Faculty)',
-    uploader_id: 'faculty-rajesh',
-    uploadedByUserId: 'faculty-rajesh',
-    file_url: 'https://example.com/files/microprocessor_manual.docx',
-    description: 'Laboratory guide for 8086 processor instruction set, addressing modes, registers mapping, and solved assembly examples for arithmetic array sorting.',
-    date: '2026-07-05',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'note-4',
-    title: 'Applied Engineering Mathematics III - Solved University Papers',
-    subject: 'Engineering Mathematics',
-    branch: 'Applied Sciences',
-    semester: 3,
-    rating: 4.6,
-    ratingCount: 8,
-    upvotes: 27,
-    userUpvoted: false,
-    fileType: 'pdf',
-    fileSize: '5.6 MB',
-    downloads: 19,
-    uploadedBy: 'Neha Sawant (Alumna)',
-    uploader_name: 'Neha Sawant (Alumna)',
-    uploader_id: 'alumni-neha',
-    uploadedByUserId: 'alumni-neha',
-    file_url: 'https://example.com/files/math_solved_papers.pdf',
-    description: 'Step-by-step mathematical proofs for Fourier series expansion, Laplace transformations, complex variables mapping, and linear differential equations of higher orders.',
-    date: '2026-07-10',
-    reported: false,
-    reportReason: ''
-  }
-];
+function createSeedNotes() {
+  return [
+    {
+      id: 'note-1',
+      title: 'Advanced Machine Learning - Deep Neural Networks lecture notes',
+      subject: 'Machine Learning (CS-601)',
+      branch: 'Computer Science',
+      semester: 6,
+      rating: 4.8,
+      ratingCount: 15,
+      upvotes: 34,
+      userUpvoted: false,
+      fileType: 'pdf',
+      fileSize: '4.2 MB',
+      downloads: 12,
+      uploadedBy: 'Aditya Roy (Alumnus)',
+      uploader_name: 'Aditya Roy (Alumnus)',
+      uploader_id: 'alumni-aditya',
+      uploadedByUserId: 'alumni-aditya',
+      file_url: 'https://example.com/files/ml_notes.pdf',
+      description: 'Detailed explanation of feedforward propagation, backpropagation, gradient descent variants, activation functions (ReLU, Sigmoid, GELU), and overfitting prevention techniques.',
+      date: '2026-07-09',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'note-2',
+      title: 'Data Structures and Algorithms - Cheat Sheet for technical interviews',
+      subject: 'Data Structures and Algorithms',
+      branch: 'Computer Science',
+      semester: 3,
+      rating: 4.9,
+      ratingCount: 24,
+      upvotes: 52,
+      userUpvoted: false,
+      fileType: 'pdf',
+      fileSize: '1.8 MB',
+      downloads: 41,
+      uploadedBy: 'Vikram Malhotra (Alumnus)',
+      uploader_name: 'Vikram Malhotra (Alumnus)',
+      uploader_id: 'alumni-vikram',
+      uploadedByUserId: 'alumni-vikram',
+      file_url: 'https://example.com/files/dsa_cheatsheet.pdf',
+      description: 'Includes complexities, code drafts, and dry runs for graph algorithms (Dijkstra, Bellman-Ford, Kruskal), tree traversals, sliding window pattern, and dynamic programming paradigms.',
+      date: '2026-07-11',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'note-3',
+      title: 'Microprocessors and Assembly Language manual',
+      subject: 'Microprocessors & Microcontrollers',
+      branch: 'Electronics',
+      semester: 4,
+      rating: 4.2,
+      ratingCount: 5,
+      upvotes: 18,
+      userUpvoted: false,
+      fileType: 'docx',
+      fileSize: '2.5 MB',
+      downloads: 5,
+      uploadedBy: 'Prof. Rajesh Sen (Faculty)',
+      uploader_name: 'Prof. Rajesh Sen (Faculty)',
+      uploader_id: 'faculty-rajesh',
+      uploadedByUserId: 'faculty-rajesh',
+      file_url: 'https://example.com/files/microprocessor_manual.docx',
+      description: 'Laboratory guide for 8086 processor instruction set, addressing modes, registers mapping, and solved assembly examples for arithmetic array sorting.',
+      date: '2026-07-05',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'note-4',
+      title: 'Applied Engineering Mathematics III - Solved University Papers',
+      subject: 'Engineering Mathematics',
+      branch: 'Applied Sciences',
+      semester: 3,
+      rating: 4.6,
+      ratingCount: 8,
+      upvotes: 27,
+      userUpvoted: false,
+      fileType: 'pdf',
+      fileSize: '5.6 MB',
+      downloads: 19,
+      uploadedBy: 'Neha Sawant (Alumna)',
+      uploader_name: 'Neha Sawant (Alumna)',
+      uploader_id: 'alumni-neha',
+      uploadedByUserId: 'alumni-neha',
+      file_url: 'https://example.com/files/math_solved_papers.pdf',
+      description: 'Step-by-step mathematical proofs for Fourier series expansion, Laplace transformations, complex variables mapping, and linear differential equations of higher orders.',
+      date: '2026-07-10',
+      reported: false,
+      reportReason: ''
+    }
+  ];
+}
 
-let tasks = [
-  {
-    id: 'task-1',
-    task_id: 'task-1',
-    title: 'Implement state-managed React To-Do Application with local persistence',
-    description: 'Need a beautiful React component with input field validations, custom list transitions, status check boxes, clear complete triggers, and persistent browser sync.',
-    budget: 450,
-    price: 450,
-    deadline: '2026-07-15',
-    branch: 'Computer Science',
-    status: 'open',
-    clientName: 'Aarav Sharma',
-    clientRating: 4.7,
-    poster_id: 'student-aarav',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'task-2',
-    task_id: 'task-2',
-    title: 'Technical analytical report comparing cloud infrastructure cost policies',
-    description: 'A 5-page PDF draft evaluating GCP, AWS, and Azure cost structures for Kubernetes cluster scaling, load balancers, and egress data costs.',
-    budget: 800,
-    price: 800,
-    deadline: '2026-07-20',
-    branch: 'Information Technology',
-    status: 'open',
-    clientName: 'Pooja Patil',
-    clientRating: 4.9,
-    poster_id: 'student-pooja',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'task-3',
-    task_id: 'task-3',
-    title: 'Laser Wavelength experiment lab calculations with error graph',
-    description: 'Complete the trigonometric calculation sheet and graph for the helium-neon diffraction grating laser experiment. Must compile tabular logs accurately.',
-    budget: 300,
-    price: 300,
-    deadline: '2026-07-13',
-    branch: 'Applied Sciences',
-    status: 'accepted',
-    acceptedBy: 'Siddharth Dave (Alumnus)',
-    acceptedBy_id: 'alumni-sid',
-    clientName: 'Kabir Mehta',
-    clientRating: 4.5,
-    poster_id: 'student-kabir',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'task-4',
-    task_id: 'task-4',
-    title: 'Write Python data parsing script for CSV spreadsheets',
-    description: 'Parse student attendance sheet records from CSV. Handle missing fields, calculate aggregates, and export to visual charts using pandas and matplotlib.',
-    budget: 500,
-    price: 500,
-    deadline: '2026-07-08',
-    branch: 'Computer Science',
-    status: 'completed',
-    acceptedBy: 'Priyanka Ghosh (Alumna)',
-    acceptedBy_id: 'alumni-priyanka',
-    clientName: 'Anaya Roy',
-    clientRating: 4.9,
-    poster_id: 'student-anaya',
-    reported: false,
-    reportReason: ''
-  }
-];
+function createSeedTasks() {
+  return [
+    {
+      id: 'task-1',
+      task_id: 'task-1',
+      title: 'Implement state-managed React To-Do Application with local persistence',
+      description: 'Need a beautiful React component with input field validations, custom list transitions, status check boxes, clear complete triggers, and persistent browser sync.',
+      budget: 450,
+      price: 450,
+      deadline: '2026-07-15',
+      branch: 'Computer Science',
+      status: 'open',
+      clientName: 'Aarav Sharma',
+      clientRating: 4.7,
+      poster_id: 'student-aarav',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'task-2',
+      task_id: 'task-2',
+      title: 'Technical analytical report comparing cloud infrastructure cost policies',
+      description: 'A 5-page PDF draft evaluating GCP, AWS, and Azure cost structures for Kubernetes cluster scaling, load balancers, and egress data costs.',
+      budget: 800,
+      price: 800,
+      deadline: '2026-07-20',
+      branch: 'Information Technology',
+      status: 'open',
+      clientName: 'Pooja Patil',
+      clientRating: 4.9,
+      poster_id: 'student-pooja',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'task-3',
+      task_id: 'task-3',
+      title: 'Laser Wavelength experiment lab calculations with error graph',
+      description: 'Complete the trigonometric calculation sheet and graph for the helium-neon diffraction grating laser experiment. Must compile tabular logs accurately.',
+      budget: 300,
+      price: 300,
+      deadline: '2026-07-13',
+      branch: 'Applied Sciences',
+      status: 'accepted',
+      acceptedBy: 'Siddharth Dave (Alumnus)',
+      acceptedBy_id: 'alumni-sid',
+      clientName: 'Kabir Mehta',
+      clientRating: 4.5,
+      poster_id: 'student-kabir',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'task-4',
+      task_id: 'task-4',
+      title: 'Write Python data parsing script for CSV spreadsheets',
+      description: 'Parse student attendance sheet records from CSV. Handle missing fields, calculate aggregates, and export to visual charts using pandas and matplotlib.',
+      budget: 500,
+      price: 500,
+      deadline: '2026-07-08',
+      branch: 'Computer Science',
+      status: 'completed',
+      acceptedBy: 'Priyanka Ghosh (Alumna)',
+      acceptedBy_id: 'alumni-priyanka',
+      clientName: 'Anaya Roy',
+      clientRating: 4.9,
+      poster_id: 'student-anaya',
+      reported: false,
+      reportReason: ''
+    }
+  ];
+}
 
-let doubts = [
-  {
-    id: 'doubt-1',
-    doubt_id: 'doubt-1',
-    title: 'How to prove that the Turing Halting Problem is undecidable?',
-    question: 'How to prove that the Turing Halting Problem is undecidable?',
-    description: "I understand the basic definition of Turing machines, but I am struggling to formulate the diagonalisation argument in simple layman terms. Can someone present the proof logically without heavy notation?",
-    category: 'Computer Science',
-    subject: 'Computer Science',
-    authorAnonymousName: 'Anonymous Owl',
-    answers: [
-      {
-        id: 'ans-1',
-        answer_id: 'ans-1',
-        text: "Assume there exists a machine H that decides Halting for any program. If we create a custom program D that takes another program's code, asks H if it halts, and then does the EXACT OPPOSITE (halts if H says loop, loops if H says halt). If we feed D's code into D itself, H(D,D) is forced to contradict itself. Thus, H cannot exist.",
-        author: 'Anonymous Fox',
-        date: '2026-07-11',
-        timestamp: '2026-07-11',
-        upvotes: 8,
-        userUpvoted: false,
-        verified: true
-      }
-    ],
-    upvotes: 12,
-    userUpvoted: false,
-    date: '2026-07-11',
-    timestamp: '2026-07-11',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'doubt-2',
-    doubt_id: 'doubt-2',
-    title: 'What is the practical difference between Debounce and Throttle in React?',
-    question: 'What is the practical difference between Debounce and Throttle in React?',
-    description: 'They both limit execution rates, but I get confused when building high-frequency scrolling trackers versus interactive global search inputs. Which one fits where?',
-    category: 'Computer Science',
-    subject: 'Computer Science',
-    authorAnonymousName: 'Anonymous Dolphin',
-    answers: [
-      {
-        id: 'ans-2',
-        answer_id: 'ans-2',
-        text: 'Debouncing delays execution until a set delay has elapsed since the last trigger event. Perfect for Search autocomplete inputs where you want to wait for typing silence. Throttling limits execution to at most once per delay window, regardless of triggers. Perfect for scroll/resize logging.',
-        author: 'Anonymous Bear',
-        date: '2026-07-12',
-        timestamp: '2026-07-12',
-        upvotes: 11,
-        userUpvoted: false,
-        verified: true
-      }
-    ],
-    upvotes: 15,
-    userUpvoted: false,
-    date: '2026-07-12',
-    timestamp: '2026-07-12',
-    reported: false,
-    reportReason: ''
-  }
-];
+function createSeedDoubts() {
+  return [
+    {
+      id: 'doubt-1',
+      doubt_id: 'doubt-1',
+      title: 'How to prove that the Turing Halting Problem is undecidable?',
+      question: 'How to prove that the Turing Halting Problem is undecidable?',
+      description: "I understand the basic definition of Turing machines, but I am struggling to formulate the diagonalisation argument in simple layman terms. Can someone present the proof logically without heavy notation?",
+      category: 'Computer Science',
+      subject: 'Computer Science',
+      authorAnonymousName: 'Anonymous Owl',
+      answers: [
+        {
+          id: 'ans-1',
+          answer_id: 'ans-1',
+          text: "Assume there exists a machine H that decides Halting for any program. If we create a custom program D that takes another program's code, asks H if it halts, and then does the EXACT OPPOSITE (halts if H says loop, loops if H says halt). If we feed D's code into D itself, H(D,D) is forced to contradict itself. Thus, H cannot exist.",
+          author: 'Anonymous Fox',
+          date: '2026-07-11',
+          timestamp: '2026-07-11',
+          upvotes: 8,
+          userUpvoted: false,
+          verified: true
+        }
+      ],
+      upvotes: 12,
+      userUpvoted: false,
+      date: '2026-07-11',
+      timestamp: '2026-07-11',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'doubt-2',
+      doubt_id: 'doubt-2',
+      title: 'What is the practical difference between Debounce and Throttle in React?',
+      question: 'What is the practical difference between Debounce and Throttle in React?',
+      description: 'They both limit execution rates, but I get confused when building high-frequency scrolling trackers versus interactive global search inputs. Which one fits where?',
+      category: 'Computer Science',
+      subject: 'Computer Science',
+      authorAnonymousName: 'Anonymous Dolphin',
+      answers: [
+        {
+          id: 'ans-2',
+          answer_id: 'ans-2',
+          text: 'Debouncing delays execution until a set delay has elapsed since the last trigger event. Perfect for Search autocomplete inputs where you want to wait for typing silence. Throttling limits execution to at most once per delay window, regardless of triggers. Perfect for scroll/resize logging.',
+          author: 'Anonymous Bear',
+          date: '2026-07-12',
+          timestamp: '2026-07-12',
+          upvotes: 11,
+          userUpvoted: false,
+          verified: true
+        }
+      ],
+      upvotes: 15,
+      userUpvoted: false,
+      date: '2026-07-12',
+      timestamp: '2026-07-12',
+      reported: false,
+      reportReason: ''
+    }
+  ];
+}
 
-let lostFound = [
-  {
-    id: 'lf-1',
-    item_id: 'lf-1',
-    poster_id: 'student-abc',
-    title: 'Black Lenovo ThinkPad Stylus pen',
-    item_name: 'Black Lenovo ThinkPad Stylus pen',
-    description: 'Found an active black digital stylus pen left behind on Table 4 in the library. Has a red tip, likely belongs to a Lenovo Yoga or ThinkPad laptop.',
-    image_url: 'https://images.unsplash.com/photo-1585336261026-77864380eb0b?auto=format&fit=crop&w=600&q=80',
-    location_found: 'Library Reading Room Table 4',
-    locationFound: 'Library Reading Room Table 4',
-    currentHolding: 'Library Main Desk Counter (Mrs. Deshmukh)',
-    contact_info: 'Librarian Assistant (library-desk@college.edu)',
-    contactName: 'Librarian Assistant',
-    contactEmail: 'library-desk@college.edu',
-    contactPhone: '022-2849503',
-    status: 'found',
-    date: '2026-07-11',
-    created_at: '2026-07-11T10:00:00.000Z',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'lf-2',
-    item_id: 'lf-2',
-    poster_id: 'student-abc',
-    title: 'Casio Scientific Calculator fx-991EX Classwiz',
-    item_name: 'Casio Scientific Calculator fx-991EX Classwiz',
-    description: 'Black scientific calculator left behind on the back benches of Seminar Hall Room 302 during the morning workshop. Scratched initials "R.S." on the reverse slide cover.',
-    image_url: 'https://images.unsplash.com/photo-1574634534894-89d7576c8259?auto=format&fit=crop&w=600&q=80',
-    location_found: 'Seminar Hall Room 302',
-    locationFound: 'Seminar Hall Room 302',
-    currentHolding: 'CS Department HOD Office Cabin',
-    contact_info: 'Prof. Rajesh Sen (rsen-cs@college.edu)',
-    contactName: 'Prof. Rajesh Sen',
-    contactEmail: 'rsen-cs@college.edu',
-    contactPhone: '982049105',
-    status: 'found',
-    date: '2026-07-10',
-    created_at: '2026-07-10T14:30:00.000Z',
-    reported: false,
-    reportReason: ''
-  },
-  {
-    id: 'lf-3',
-    item_id: 'lf-3',
-    poster_id: 'student-123',
-    title: 'Brown leather wallet with ID Card',
-    item_name: 'Brown leather wallet with ID Card',
-    description: 'Lost a brown leather wallet while playing football on the ground. Contains college ID card and travel passes. Please return to sports room if found.',
-    image_url: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=600&q=80',
-    location_found: 'Sports Playground Bleachers',
-    locationFound: 'Sports Playground Bleachers',
-    currentHolding: 'N/A',
-    contact_info: 'Harsh Gupta (hgupta-stud@college.edu)',
-    contactName: 'Harsh Gupta',
-    contactEmail: 'hgupta-stud@college.edu',
-    contactPhone: '9120491823',
-    status: 'lost',
-    date: '2026-07-12',
-    created_at: '2026-07-12T08:15:00.000Z',
-    reported: false,
-    reportReason: ''
-  }
-];
+function createSeedLostFound() {
+  return [
+    {
+      id: 'lf-1',
+      item_id: 'lf-1',
+      poster_id: 'student-abc',
+      title: 'Black Lenovo ThinkPad Stylus pen',
+      item_name: 'Black Lenovo ThinkPad Stylus pen',
+      description: 'Found an active black digital stylus pen left behind on Table 4 in the library. Has a red tip, likely belongs to a Lenovo Yoga or ThinkPad laptop.',
+      image_url: 'https://images.unsplash.com/photo-1585336261026-77864380eb0b?auto=format&fit=crop&w=600&q=80',
+      location_found: 'Library Reading Room Table 4',
+      locationFound: 'Library Reading Room Table 4',
+      currentHolding: 'Library Main Desk Counter (Mrs. Deshmukh)',
+      contact_info: 'Librarian Assistant (library-desk@college.edu)',
+      contactName: 'Librarian Assistant',
+      contactEmail: 'library-desk@college.edu',
+      contactPhone: '022-2849503',
+      status: 'found',
+      date: '2026-07-11',
+      created_at: '2026-07-11T10:00:00.000Z',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'lf-2',
+      item_id: 'lf-2',
+      poster_id: 'student-abc',
+      title: 'Casio Scientific Calculator fx-991EX Classwiz',
+      item_name: 'Casio Scientific Calculator fx-991EX Classwiz',
+      description: 'Black scientific calculator left behind on the back benches of Seminar Hall Room 302 during the morning workshop. Scratched initials "R.S." on the reverse slide cover.',
+      image_url: 'https://images.unsplash.com/photo-1574634534894-89d7576c8259?auto=format&fit=crop&w=600&q=80',
+      location_found: 'Seminar Hall Room 302',
+      locationFound: 'Seminar Hall Room 302',
+      currentHolding: 'CS Department HOD Office Cabin',
+      contact_info: 'Prof. Rajesh Sen (rsen-cs@college.edu)',
+      contactName: 'Prof. Rajesh Sen',
+      contactEmail: 'rsen-cs@college.edu',
+      contactPhone: '982049105',
+      status: 'found',
+      date: '2026-07-10',
+      created_at: '2026-07-10T14:30:00.000Z',
+      reported: false,
+      reportReason: ''
+    },
+    {
+      id: 'lf-3',
+      item_id: 'lf-3',
+      poster_id: 'student-123',
+      title: 'Brown leather wallet with ID Card',
+      item_name: 'Brown leather wallet with ID Card',
+      description: 'Lost a brown leather wallet while playing football on the ground. Contains college ID card and travel passes. Please return to sports room if found.',
+      image_url: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=600&q=80',
+      location_found: 'Sports Playground Bleachers',
+      locationFound: 'Sports Playground Bleachers',
+      currentHolding: 'N/A',
+      contact_info: 'Harsh Gupta (hgupta-stud@college.edu)',
+      contactName: 'Harsh Gupta',
+      contactEmail: 'hgupta-stud@college.edu',
+      contactPhone: '9120491823',
+      status: 'lost',
+      date: '2026-07-12',
+      created_at: '2026-07-12T08:15:00.000Z',
+      reported: false,
+      reportReason: ''
+    }
+  ];
+}
+
+function createSeedBookmarks(): Bookmark[] {
+  return [
+    {
+      id: 'bm-1',
+      userId: 'student-123',
+      itemType: 'note',
+      itemId: 'note-1',
+      title: 'Advanced Machine Learning - Deep Neural Networks lecture notes',
+      createdAt: '2026-07-11T09:00:00.000Z'
+    },
+    {
+      id: 'bm-2',
+      userId: 'student-123',
+      itemType: 'doubt',
+      itemId: 'doubt-1',
+      title: 'How to prove that the Turing Halting Problem is undecidable?',
+      createdAt: '2026-07-11T10:30:00.000Z'
+    }
+  ];
+}
+
+let notes = createSeedNotes();
+let tasks = createSeedTasks();
+let doubts = createSeedDoubts();
+let lostFound = createSeedLostFound();
+let bookmarks: Bookmark[] = createSeedBookmarks();
 
 // Helper function to extract user from Authorization header
 function getCurrentUser(req: express.Request): User {
@@ -415,15 +461,165 @@ function sanitizeUser(user: User) {
   return rest;
 }
 
-// --- API ROUTES ---
+function buildAnalyticsPayload() {
+  const totalDownloads = notes.reduce((sum, n) => sum + (Number(n.downloads) || 0), 0);
+  const totalNoteUpvotes = notes.reduce((sum, n) => sum + (Number(n.upvotes) || 0), 0);
+  const openTasks = tasks.filter(t => t.status === 'open').length;
+  const acceptedTasks = tasks.filter(t => t.status === 'accepted').length;
+  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+  const totalCommissionBudget = tasks.reduce((sum, t) => sum + (Number(t.price || t.budget) || 0), 0);
+  const resolvedDoubts = doubts.filter(d => Array.isArray(d.answers) && d.answers.length > 0).length;
+  const totalAnswers = doubts.reduce((sum, d) => sum + (Array.isArray(d.answers) ? d.answers.length : 0), 0);
+  const lostItems = lostFound.filter(i => i.status === 'lost').length;
+  const foundItems = lostFound.filter(i => i.status === 'found').length;
+  const claimedItems = lostFound.filter(i => i.status === 'claimed').length;
+  const flaggedCount =
+    notes.filter(n => n.reported).length +
+    tasks.filter(t => t.reported).length +
+    doubts.filter(d => d.reported).length +
+    lostFound.filter(l => l.reported).length;
 
-// Health check
-app.get('/api/health', (req, res) => {
+  const branchesMap: Record<string, number> = {};
+  for (const n of notes) {
+    branchesMap[n.branch] = (branchesMap[n.branch] || 0) + 1;
+  }
+
+  return {
+    notes: {
+      total: notes.length,
+      totalDownloads,
+      totalUpvotes: totalNoteUpvotes,
+      byBranch: branchesMap
+    },
+    tasks: {
+      total: tasks.length,
+      open: openTasks,
+      accepted: acceptedTasks,
+      completed: completedTasks,
+      totalBudgetINR: totalCommissionBudget
+    },
+    doubts: {
+      total: doubts.length,
+      resolved: resolvedDoubts,
+      totalAnswers
+    },
+    lostFound: {
+      total: lostFound.length,
+      lost: lostItems,
+      found: foundItems,
+      claimed: claimedItems
+    },
+    moderation: {
+      flaggedCount
+    }
+  };
+}
+
+// --- API ROUTES (mounted on both /api and /api/v1) ---
+
+const apiRouter = express.Router();
+
+const API_ENDPOINTS_INDEX = [
+  '/api/bootstrap',
+  '/api/sync-seed',
+  '/api/notes',
+  '/api/tasks',
+  '/api/doubts',
+  '/api/lost-found',
+  '/api/user-profile',
+  '/api/bookmarks',
+  '/api/analytics',
+  '/api/status'
+];
+
+// Status & Health check
+apiRouter.get('/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'nextus-backend',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    uptimeSeconds: Math.floor((Date.now() - SERVER_START_TIME) / 1000),
+    time: new Date().toISOString(),
+    counts: {
+      users: users.length,
+      notes: notes.length,
+      tasks: tasks.length,
+      doubts: doubts.length,
+      lostFound: lostFound.length,
+      bookmarks: bookmarks.length
+    },
+    endpoints: API_ENDPOINTS_INDEX
+  });
+});
+
+apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// Bootstrap: Full initial data payload
+apiRouter.get('/bootstrap', (req, res) => {
+  const user = getCurrentUser(req);
+  const clientSessionId = (req.headers['x-session-id'] as string) || generateSessionId();
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    user: { ...sanitizeUser(user), sessionId: clientSessionId },
+    notes,
+    tasks,
+    doubts,
+    lostFound,
+    bookmarks: bookmarks.filter(b => b.userId === user.id),
+    analytics: buildAnalyticsPayload()
+  });
+});
+
+// Sync Seed: Ensure or reset seed collections
+function handleSyncSeed(req: express.Request, res: express.Response) {
+  const shouldReset = req.method === 'POST' || req.query.reset === 'true';
+  if (shouldReset) {
+    notes = createSeedNotes();
+    tasks = createSeedTasks();
+    doubts = createSeedDoubts();
+    lostFound = createSeedLostFound();
+    bookmarks = createSeedBookmarks();
+  } else {
+    if (notes.length === 0) notes = createSeedNotes();
+    if (tasks.length === 0) tasks = createSeedTasks();
+    if (doubts.length === 0) doubts = createSeedDoubts();
+    if (lostFound.length === 0) lostFound = createSeedLostFound();
+    if (bookmarks.length === 0) bookmarks = createSeedBookmarks();
+  }
+
+  res.json({
+    status: 'ok',
+    synced: true,
+    mode: shouldReset ? 'reset' : 'verified',
+    timestamp: new Date().toISOString(),
+    counts: {
+      notes: notes.length,
+      tasks: tasks.length,
+      doubts: doubts.length,
+      lostFound: lostFound.length,
+      bookmarks: bookmarks.length
+    }
+  });
+}
+
+apiRouter.get('/sync-seed', handleSyncSeed);
+apiRouter.post('/sync-seed', handleSyncSeed);
+
+// Analytics
+apiRouter.get('/analytics', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    ...buildAnalyticsPayload()
+  });
+});
+
 // Auth: Signup
-app.post('/api/v1/auth/signup', (req, res) => {
+apiRouter.post('/auth/signup', (req, res) => {
   const { name, branch, email, password } = req.body;
   if (!name || !branch || !email || !password) {
     return res.status(400).json({ error: 'All fields are required', detail: 'All fields are required' });
@@ -469,7 +665,7 @@ app.post('/api/v1/auth/signup', (req, res) => {
 });
 
 // Auth: Login
-app.post('/api/v1/auth/login', (req, res) => {
+apiRouter.post('/auth/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Please enter both email and password', detail: 'Please enter both email and password' });
@@ -497,7 +693,7 @@ app.post('/api/v1/auth/login', (req, res) => {
 });
 
 // Auth: Google Login
-app.post('/api/v1/auth/google-login', (req, res) => {
+apiRouter.post('/auth/google-login', (req, res) => {
   const { idToken } = req.body;
   if (!idToken) {
     return res.status(400).json({ error: 'idToken is required', detail: 'idToken is required' });
@@ -556,15 +752,14 @@ app.post('/api/v1/auth/google-login', (req, res) => {
   }
 });
 
-// User Profile
-app.get('/api/v1/user/profile', (req, res) => {
+// User Profile handlers (mounted at both /user-profile and /user/profile)
+function handleGetUserProfile(req: express.Request, res: express.Response) {
   const user = getCurrentUser(req);
   const clientSessionId = (req.headers['x-session-id'] as string) || generateSessionId();
   return res.json({ ...sanitizeUser(user), sessionId: clientSessionId });
-});
+}
 
-// User Profile Settings
-app.put('/api/v1/user/profile/settings', (req, res) => {
+function handleUpdateUserProfile(req: express.Request, res: express.Response) {
   const user = getCurrentUser(req);
   const { theme_preference, division, rollNo, name, branch, college, seatNo, semester } = req.body;
   if (theme_preference !== undefined) user.theme_preference = theme_preference;
@@ -584,10 +779,58 @@ app.put('/api/v1/user/profile/settings', (req, res) => {
     rollNo: user.rollNo,
     user: sanitizeUser(user)
   });
+}
+
+apiRouter.get('/user-profile', handleGetUserProfile);
+apiRouter.put('/user-profile', handleUpdateUserProfile);
+apiRouter.get('/user/profile', handleGetUserProfile);
+apiRouter.put('/user/profile/settings', handleUpdateUserProfile);
+
+// Bookmarks
+apiRouter.get('/bookmarks', (req, res) => {
+  const user = getCurrentUser(req);
+  const { itemType } = req.query;
+  let userBookmarks = bookmarks.filter(b => b.userId === user.id);
+  if (itemType && itemType !== 'All') {
+    userBookmarks = userBookmarks.filter(b => b.itemType === itemType);
+  }
+  res.json(userBookmarks);
+});
+
+apiRouter.post('/bookmarks', (req, res) => {
+  const user = getCurrentUser(req);
+  const { itemType, itemId, title } = req.body;
+  if (!itemType || !itemId) {
+    return res.status(400).json({ error: 'itemType and itemId are required' });
+  }
+
+  const existing = bookmarks.find(
+    b => b.userId === user.id && b.itemType === itemType && b.itemId === itemId
+  );
+  if (existing) {
+    return res.json(existing);
+  }
+
+  const newBookmark: Bookmark = {
+    id: `bm-${Date.now()}`,
+    userId: user.id,
+    itemType,
+    itemId,
+    title: title || `${itemType} (${itemId})`,
+    createdAt: new Date().toISOString()
+  };
+  bookmarks.unshift(newBookmark);
+  return res.status(201).json(newBookmark);
+});
+
+apiRouter.delete('/bookmarks/:id', (req, res) => {
+  const { id } = req.params;
+  bookmarks = bookmarks.filter(b => b.id !== id && b.itemId !== id);
+  return res.json({ status: 'success', message: 'Bookmark removed' });
 });
 
 // Notes: Get all (supports filtering)
-app.get('/api/v1/notes', (req, res) => {
+apiRouter.get('/notes', (req, res) => {
   const { semester, subject, branch } = req.query;
   let filtered = [...notes];
   if (semester && semester !== 'All') {
@@ -603,7 +846,7 @@ app.get('/api/v1/notes', (req, res) => {
 });
 
 // Notes: Create note
-app.post('/api/v1/notes', (req, res) => {
+apiRouter.post('/notes', (req, res) => {
   const user = getCurrentUser(req);
   const { title, subject, semester, branch, fileType, fileSize, description, file_url } = req.body;
   if (!title || !subject) {
@@ -640,14 +883,14 @@ app.post('/api/v1/notes', (req, res) => {
 });
 
 // Notes: Delete note
-app.delete('/api/v1/notes/:id', (req, res) => {
+apiRouter.delete('/notes/:id', (req, res) => {
   const { id } = req.params;
   notes = notes.filter(n => n.id !== id);
   return res.json({ status: 'success', message: 'Note deleted' });
 });
 
 // Notes: Report note
-app.post('/api/v1/notes/:id/report', (req, res) => {
+apiRouter.post('/notes/:id/report', (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
   const note = notes.find(n => n.id === id);
@@ -659,7 +902,7 @@ app.post('/api/v1/notes/:id/report', (req, res) => {
 });
 
 // Notes: Rate note
-app.post('/api/v1/notes/:id/rate', (req, res) => {
+apiRouter.post('/notes/:id/rate', (req, res) => {
   const { id } = req.params;
   const { score } = req.body;
   const note = notes.find(n => n.id === id);
@@ -672,7 +915,7 @@ app.post('/api/v1/notes/:id/rate', (req, res) => {
 });
 
 // Notes: Upvote note
-app.post('/api/v1/notes/:id/upvote', (req, res) => {
+apiRouter.post('/notes/:id/upvote', (req, res) => {
   const { id } = req.params;
   const note = notes.find(n => n.id === id);
   if (note) {
@@ -683,7 +926,7 @@ app.post('/api/v1/notes/:id/upvote', (req, res) => {
 });
 
 // Tasks: Get all
-app.get('/api/v1/tasks', (req, res) => {
+apiRouter.get('/tasks', (req, res) => {
   const { status_filter, branch } = req.query;
   let filtered = [...tasks];
   if (status_filter && status_filter !== 'All') {
@@ -696,7 +939,7 @@ app.get('/api/v1/tasks', (req, res) => {
 });
 
 // Tasks: Create task
-app.post('/api/v1/tasks', (req, res) => {
+apiRouter.post('/tasks', (req, res) => {
   const user = getCurrentUser(req);
   const { title, description, budget, price, deadline, branch } = req.body;
   if (!title || !description) {
@@ -726,14 +969,14 @@ app.post('/api/v1/tasks', (req, res) => {
 });
 
 // Tasks: Delete task
-app.delete('/api/v1/tasks/:id', (req, res) => {
+apiRouter.delete('/tasks/:id', (req, res) => {
   const { id } = req.params;
   tasks = tasks.filter(t => t.id !== id && t.task_id !== id);
   return res.json({ status: 'success', message: 'Task deleted' });
 });
 
 // Tasks: Report task
-app.post('/api/v1/tasks/:id/report', (req, res) => {
+apiRouter.post('/tasks/:id/report', (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
   const task = tasks.find(t => t.id === id || t.task_id === id);
@@ -745,7 +988,7 @@ app.post('/api/v1/tasks/:id/report', (req, res) => {
 });
 
 // Tasks: Update task (accept / complete)
-app.patch('/api/v1/tasks/:id', (req, res) => {
+apiRouter.patch('/tasks/:id', (req, res) => {
   const { id } = req.params;
   const task = tasks.find(t => t.id === id || t.task_id === id);
   if (!task) {
@@ -756,7 +999,7 @@ app.patch('/api/v1/tasks/:id', (req, res) => {
 });
 
 // Doubts: Get all
-app.get('/api/v1/doubts', (req, res) => {
+apiRouter.get('/doubts', (req, res) => {
   const { subject, category } = req.query;
   let filtered = [...doubts];
   const filterCat = subject || category;
@@ -767,7 +1010,7 @@ app.get('/api/v1/doubts', (req, res) => {
 });
 
 // Doubts: Create doubt
-app.post('/api/v1/doubts', (req, res) => {
+apiRouter.post('/doubts', (req, res) => {
   const { question, title, subject, category, description, authorAnonymousName } = req.body;
   const doubtTitle = question || title;
   if (!doubtTitle) {
@@ -798,7 +1041,7 @@ app.post('/api/v1/doubts', (req, res) => {
 });
 
 // Doubts: Answer doubt
-app.post('/api/v1/doubts/answer', (req, res) => {
+apiRouter.post('/doubts/answer', (req, res) => {
   const { doubt_id, text, author } = req.body;
   if (!doubt_id || !text) {
     return res.status(400).json({ error: 'doubt_id and text are required' });
@@ -827,7 +1070,7 @@ app.post('/api/v1/doubts/answer', (req, res) => {
 });
 
 // Doubts: Upvote doubt
-app.post('/api/v1/doubts/:id/upvote', (req, res) => {
+apiRouter.post('/doubts/:id/upvote', (req, res) => {
   const { id } = req.params;
   const doubt = doubts.find(d => d.id === id || d.doubt_id === id);
   if (doubt) {
@@ -838,7 +1081,7 @@ app.post('/api/v1/doubts/:id/upvote', (req, res) => {
 });
 
 // Doubts: Report doubt
-app.post('/api/v1/doubts/:id/report', (req, res) => {
+apiRouter.post('/doubts/:id/report', (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
   const doubt = doubts.find(d => d.id === id || d.doubt_id === id);
@@ -850,7 +1093,7 @@ app.post('/api/v1/doubts/:id/report', (req, res) => {
 });
 
 // Lost & Found: Get all
-app.get('/api/v1/lost-found', (req, res) => {
+apiRouter.get('/lost-found', (req, res) => {
   const { status_filter } = req.query;
   let filtered = [...lostFound];
   if (status_filter && status_filter !== 'All') {
@@ -860,7 +1103,7 @@ app.get('/api/v1/lost-found', (req, res) => {
 });
 
 // Lost & Found: Create item
-app.post('/api/v1/lost-found', (req, res) => {
+apiRouter.post('/lost-found', (req, res) => {
   const user = getCurrentUser(req);
   const {
     item_name,
@@ -916,7 +1159,7 @@ app.post('/api/v1/lost-found', (req, res) => {
 });
 
 // Lost & Found: Update item
-app.patch('/api/v1/lost-found/:id', (req, res) => {
+apiRouter.patch('/lost-found/:id', (req, res) => {
   const { id } = req.params;
   const item = lostFound.find(lf => lf.id === id || lf.item_id === id);
   if (!item) {
@@ -933,14 +1176,14 @@ app.patch('/api/v1/lost-found/:id', (req, res) => {
 });
 
 // Lost & Found: Delete item
-app.delete('/api/v1/lost-found/:id', (req, res) => {
+apiRouter.delete('/lost-found/:id', (req, res) => {
   const { id } = req.params;
   lostFound = lostFound.filter(lf => lf.id !== id && lf.item_id !== id);
   return res.json({ status: 'success', message: 'Post successfully deleted' });
 });
 
 // Lost & Found: Report item
-app.post('/api/v1/lost-found/:id/report', (req, res) => {
+apiRouter.post('/lost-found/:id/report', (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
   const item = lostFound.find(lf => lf.id === id || lf.item_id === id);
@@ -952,7 +1195,7 @@ app.post('/api/v1/lost-found/:id/report', (req, res) => {
 });
 
 // Admin: Get all flagged reports
-app.get('/api/v1/admin/reports', (req, res) => {
+apiRouter.get('/admin/reports', (req, res) => {
   const user = getCurrentUser(req);
   if (!user || !user.isAdmin) {
     return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
@@ -991,7 +1234,7 @@ app.get('/api/v1/admin/reports', (req, res) => {
 });
 
 // Admin: Dismiss report
-app.post('/api/v1/admin/reports/:id/dismiss', (req, res) => {
+apiRouter.post('/admin/reports/:id/dismiss', (req, res) => {
   const user = getCurrentUser(req);
   if (!user || !user.isAdmin) {
     return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
@@ -1016,6 +1259,10 @@ app.post('/api/v1/admin/reports/:id/dismiss', (req, res) => {
   return res.json({ status: 'success', message: 'Report dismissed' });
 });
 
+// Mount shared API router on both /api/v1 and /api
+app.use('/api/v1', apiRouter);
+app.use('/api', apiRouter);
+
 // Fallback 404 for unhandled API routes
 app.all('/api/*', (req, res) => {
   res.status(404).json({
@@ -1028,10 +1275,21 @@ app.all('/api/*', (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {
     const distPath = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    const distIndex = path.join(distPath, 'index.html');
+    if (fs.existsSync(distIndex)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(distIndex);
+      });
+    } else {
+      app.get('/', (req, res) => {
+        res.json({
+          service: 'Nextus Backend API',
+          status: 'ok',
+          endpoints: API_ENDPOINTS_INDEX
+        });
+      });
+    }
   } else {
     const vite = await createViteServer({
       server: { middlewareMode: true },
