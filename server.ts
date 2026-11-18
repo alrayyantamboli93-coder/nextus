@@ -1273,7 +1273,26 @@ app.all('/api/*', (req, res) => {
 
 // --- VITE MIDDLEWARE & STATIC SERVING ---
 async function startServer() {
-  if (process.env.NODE_ENV === 'production') {
+  const isBackendOnly = process.env.BACKEND_ONLY === 'true' || process.env.RENDER === 'true';
+
+  if (isBackendOnly) {
+    app.get('/', (req, res) => {
+      res.json({
+        service: 'Nextus Backend API',
+        status: 'ok',
+        version: '1.0.0',
+        frontend: process.env.APP_URL || 'https://nextus-nothing-c48a.vercel.app',
+        endpoints: API_ENDPOINTS_INDEX
+      });
+    });
+
+    app.use((req, res) => {
+      res.status(404).json({
+        error: `Route not found: ${req.method} ${req.path}`,
+        endpoints: API_ENDPOINTS_INDEX
+      });
+    });
+  } else if (process.env.NODE_ENV === 'production') {
     const distPath = path.resolve(process.cwd(), 'dist');
     const distIndex = path.join(distPath, 'index.html');
     if (fs.existsSync(distIndex)) {
@@ -1299,7 +1318,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Nextus Full-Stack Server listening on http://0.0.0.0:${PORT}`);
+    console.log(`Nextus ${isBackendOnly ? 'Backend API' : 'Full-Stack'} Server listening on http://0.0.0.0:${PORT}`);
   });
 }
 
