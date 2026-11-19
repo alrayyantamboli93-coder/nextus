@@ -41,8 +41,8 @@ export default function Layout({
     { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
   ];
 
-  // Mobile bottom bar keeps dedicated content tabs; logo links to dashboard and moderation stays on desktop/settings
-  const mobileNavigationItems = navigationItems.filter(item => item.id !== 'dashboard' && item.id !== 'admin');
+  // Mobile bottom bar mirrors navigationItems (including Dashboard and Moderation for admins)
+  const mobileNavigationItems = navigationItems;
 
   const handleTabClick = (tabId: string) => {
     setCurrentTab(tabId);
@@ -162,7 +162,7 @@ export default function Layout({
         </main>
       </div>
 
-      {/* MOBILE BOTTOM NAVIGATION: fixed bottom bar with clean 5 tabs (Notes, Tasks, Doubts, Lost & Found, Profile) */}
+      {/* MOBILE BOTTOM NAVIGATION: fixed bottom bar with all navigation tabs */}
       <nav 
         id="mobile-bottom-navigation"
         className="fixed bottom-0 left-0 right-0 z-40 h-16 bg-surface border-t border-border-subtle flex items-center justify-around md:hidden px-1"
@@ -176,14 +176,14 @@ export default function Layout({
               to={item.path}
               id={`mobile-bottom-nav-item-${item.id}`}
               onClick={() => handleTabClick(item.id)}
-              className="flex flex-col items-center justify-center flex-1 h-full py-1 text-center transition-all duration-150 active:scale-95 cursor-pointer"
+              className="flex flex-col items-center justify-center flex-1 min-w-0 h-full py-1 text-center transition-all duration-150 active:scale-95 cursor-pointer"
             >
               <IconComponent 
-                size={20} 
-                className={isActive ? 'text-accent-primary scale-110' : 'text-text-secondary'} 
+                size={18} 
+                className={isActive ? 'text-accent-primary scale-110' : item.id === 'admin' ? 'text-color-danger' : 'text-text-secondary'} 
               />
               <span 
-                className={`text-[10px] mt-1 font-medium tracking-tight truncate max-w-full px-0.5 transition-colors ${
+                className={`text-[9px] mt-1 font-medium tracking-tight truncate max-w-full px-0.5 transition-colors ${
                   isActive ? 'text-accent-primary font-semibold' : 'text-text-secondary'
                 }`}
               >
